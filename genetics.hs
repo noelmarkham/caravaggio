@@ -1,32 +1,19 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-
 module Genetics where
 
 import System.Random
 import Control.Monad
 
-crossover :: ([Bool], [Bool]) -> IO [Bool]
-crossover (first, second) = do
-                        place <- randomRIO (0, length first)
-                        return $ fst ( splitAt place first) ++ snd ( splitAt place second)
+type Chromasome = [Bool]
 
-maybeSwapBit :: Bool -> IO Bool
-maybeSwapBit b = do
-             rand <- randomRIO (0, 100) :: IO Int
-             return $ if (rand == 1) then (not b) else b
+crossover :: Int -> (Chromasome, Chromasome) -> (Chromasome, Chromasome)
+crossover splitPoint (one, two) = (oneA ++ twoB, twoA ++ oneB)
+      where (oneA, oneB) = splitAt splitPoint one
+            (twoA, twoB) = splitAt splitPoint two
 
-newMutate :: [Bool] -> IO [Bool]
-newMutate bools = mapM maybeSwapBit bools
-
-mutate :: [Bool] -> IO [Bool]
-mutate bools = do
-          bitsToFlip <- replicateM (quot (length bools) 10) $ randomRIO (0, length bools)
-          return $ doMutation bools bitsToFlip
-
-doMutation :: [Bool] -> [Int] -> [Bool]
-doMutation bools bitsToFlip = foldl foldFunction bools bitsToFlip
-
-foldFunction :: [Bool] -> Int -> [Bool]
-foldFunction bools bit = f ++ (not $ head s) : (tail s)
-                 where (f, s) = splitAt bit bools
+doMutation :: [Int] -> Chromasome -> Chromasome
+doMutation bits chromasome = foldl mutate chromasome bits
+      where mutate [] _ = []
+            mutate chromasome bitValue = front ++ not flipBit : rest
+                where moddedBitValue = bitValue `mod` length chromasome
+                      (front, flipBit : rest) = splitAt moddedBitValue chromasome
 
