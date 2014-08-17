@@ -1,6 +1,14 @@
 module Genetics where
 
+import Data.List (inits)
+
 type Chromasome = [Bool]
+
+createRouletteProportions :: [(Chromasome, Double)] -> [(Chromasome, Double)]
+createRouletteProportions population =  zip chromasomes runningTotals
+     where chromasomes = fmap fst population
+           scores = fmap (\(_, s) -> 1 / s) population
+           runningTotals = fmap sum $ tail $ inits scores
 
 crossover :: Int -> (Chromasome, Chromasome) -> (Chromasome, Chromasome)
 crossover splitPoint (one, two) = (oneA ++ twoB, twoA ++ oneB)

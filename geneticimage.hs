@@ -94,7 +94,7 @@ imgDiff :: [[AlphaColour Double]] -> [[AlphaColour Double]] -> Double
 imgDiff img1 img2 = abs $ sum $ zipWith diffPix (concat img1) (concat img2)
 
 diffPix :: AlphaColour Double -> AlphaColour Double -> Double
-diffPix a1 a2 = removeNaN fullDiff
+diffPix a1 a2 = fullDiff
             where redF a = channelRed $ toSRGB (a `over` black)
                   greenF a = channelGreen $ toSRGB (a `over` black)
                   blueF a = channelBlue $ toSRGB (a `over` black)
@@ -102,4 +102,3 @@ diffPix a1 a2 = removeNaN fullDiff
                   diffGreen = greenF a1 - greenF a2
                   diffBlue = blueF a1 - blueF a2
                   fullDiff = (diffRed * diffRed) - (diffGreen * diffGreen) - (diffBlue * diffBlue)
-                  removeNaN val = if isNaN val then 1000000 else val
