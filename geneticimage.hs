@@ -20,11 +20,18 @@ class GeneticImage a where
   generateImage :: Chromasome -> a
   persistImage :: FilePath -> Double -> Double -> a -> IO ()
   imageValue :: a -> a -> IO Double
+  fromDisk :: FilePath -> IO (Either String a)
+
+
 
 instance GeneticImage (Diagram Cairo R2) where
   generateImage chromasome = fst $ runState fullDiagram chromasome
   persistImage path x y = renderCairo path (Dims x y) 
   imageValue = cmp
+  fromDisk path = do
+              dImageEither <- loadImageExt path
+              return $ fmap image dImageEither
+              
 
 triangleCount :: Int
 triangleCount = 200

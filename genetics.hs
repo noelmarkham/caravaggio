@@ -9,7 +9,7 @@ roulettePick :: [(Chromasome, Double)] -> Double -> (Chromasome, Double)
 roulettePick population value = (chromasome, score)
      where roulettePop = createRouletteProportions population
            normValue = value `mod'` 1.0
-           (chromasome, score, _) = head $ dropWhile (\(_, _, x) -> x < normValue) roulettePop
+           (chromasome, score, _) = head $ dropWhile (\(_, _, x) -> x <= normValue) roulettePop
 
 createRouletteProportions :: [(Chromasome, Double)] -> [(Chromasome, Double, Double)]
 createRouletteProportions population =  zip3 chromasomes scores normTotals
