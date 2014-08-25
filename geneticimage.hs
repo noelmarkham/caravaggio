@@ -92,8 +92,11 @@ fullDiagram = do
 
 cmp :: Diagram Cairo R2 -> Diagram Cairo R2 -> IO Double
 cmp base img = do
+           putStrLn "Doing base"
            baseAlphaColours <- renderToList 100 100 base
+           putStrLn "Doing img"
            imgAlphaColours <- renderToList 100 100 img
+           putStrLn "Comparing" 
            let difference = imgDiff baseAlphaColours imgAlphaColours
            putStrLn $ "diff: " ++ show difference
            return difference

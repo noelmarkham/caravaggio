@@ -16,75 +16,63 @@ import Control.Concurrent (forkIO)
 populationSize :: Int
 populationSize = 20
 
-doGenetics :: [(Chromasome, Double)] -> IO [Chromasome]
-doGenetics population = do
-          let roulette = roulettePick population
-          r1s <- replicateM (quot populationSize 2) $ randomRIO (0, 1.0)
-          r2s <- replicateM (quot populationSize 2) $ randomRIO (0, 1.0)
-          let r1picks = fmap (fst . roulette) r1s
-          let r2picks = fmap (fst . roulette) r2s
-          let pairs = zip r1picks r2picks
-          geneticsListOfLists <- mapM geneticOperation pairs
-          return $ concat geneticsListOfLists
+ioMutate :: Int -> Chromasome -> IO Chromasome
+ioMutate chromasomeLength chromasome = do
+                  bits <- replicateM (quot chromasomeLength 10) $ randomRIO (0, chromasomeLength)
+                  return $ doMutation bits chromasome
 
-geneticOperation :: (Chromasome, Chromasome) -> IO [Chromasome]
-geneticOperation (c1, c2) = do
-                crossoverChance <- randomRIO (0, 1.0) :: IO Double
-                let chromasomeLength = length c1
-                crossPoint <- randomRIO (0, chromasomeLength)
-                let (cc1, cc2) = if crossoverChance < 0.7 then crossover crossPoint (c1, c2) else (c1, c2)
-                bits1 <- replicateM (quot chromasomeLength 10) $ randomRIO (0, chromasomeLength)
-                bits2 <- replicateM (quot chromasomeLength 10) $ randomRIO (0, chromasomeLength)
-                let mut1 = doMutation bits1 cc1
-                let mut2 = doMutation bits2 cc2
-                return $ mut1 : mut2 : []
+maybeCrossover :: Int -> (Chromasome, Chromasome) -> IO (Chromasome, Chromasome)
+maybeCrossover chromasomeLength pair = do
+                  randSelect <- randomRIO (0, 1.0) :: IO Double
+                  randPos <- randomRIO (0, chromasomeLength)
+                  return $ if (randSelect < 0.7) then crossover randPos pair else pair
 
-iteration :: (Diagram Cairo R2 -> IO Double) -> (Int, [Chromasome]) -> IO (Int, [Chromasome])
-iteration comparison (count, population) = do
-                putStrLn "1"
+listOfTupToList :: [(a, a)] -> [a]
+listOfTupToList l = concat $ map tupToList l
+         where tupToList (a, b) = a : b : []
 
-                -- create a score for each chromasome
-                let images = fmap generateImage population
+newPopulation :: [(Chromasome, Double)] -> IO [Chromasome]
+newPopulation population = do
+                  rand1 <- replicateM (quot populationSize 2) $ randomRIO (0, 1.0)
+                  rand2 <- replicateM (quot populationSize 2) $ randomRIO (0, 1.0)
+                  let pickForPop = fst . roulettePick population
+                  let randPick1 = fmap pickForPop rand1
+                  let randPick2 = fmap pickForPop rand2
+                  let crossFunc = maybeCrossover bitCount
+                  let mutateFunc = ioMutate bitCount
+                  newPop <- mapM crossFunc $ zip randPick1 randPick2
+                  let flatNewPop = listOfTupToList newPop
+                  mapM mutateFunc flatNewPop
 
-                putStrLn "2"
-                scores <- mapM comparison images
+iteration :: (Diagram Cairo R2 -> IO Double) -> Int -> [Chromasome] -> IO (Int, [Chromasome])
+iteration compareFunction count population = do
+                  putStrLn $ "Iteration " ++ show count
+                  -- generate pictures for all of the chromasomes
+                  let pictures = fmap generateImage population
 
-                putStrLn "3"
+                  -- get scores for all of the pictures
+                  scores <- mapM compareFunction pictures
 
-                -- find the best score and write it to disk
+                  -- get the best picture and write it to disk
+                  let bestDiagram = fst $ head $ sortBy (compare `on` snd) $ zip pictures scores
 
-                let filename = printf "/vagrant/caravaggio/target/out/%010d.png" count
+                  let filename = printf "/vagrant/caravaggio/target/out/%010d.png" count
+                  persistImage filename 400 400 bestDiagram
 
-                let imageAndScore = zip images scores
-                let (bestImage, score) = head $ sortBy (compare `on` snd) imageAndScore
+                  -- create a new population using the genetics functions
+                  newPop <- newPopulation $ zip population scores
 
-                putStrLn $ "Iteration " ++ show count ++ " Score: " ++ show score
-
-                forkIO $ persistImage filename 400 400 bestImage
-                putStrLn "4"
-
-
-                -- generate new chromasomes
-
-
-                newChromasomes <- doGenetics $ zip population scores
-                putStrLn $ "New chromasome size: " ++ show (length newChromasomes)
-                putStrLn "5"
-
-                -- Go again
-
-                return (count, newChromasomes)
-                --if count < 3 then iteration comparison (count + 1, newChromasomes) else return (count, newChromasomes)
+                  return (count + 1, newPop)
 
 randomChromasome :: IO Chromasome
 randomChromasome = replicateM bitCount $ randomRIO (False, True)
 
 run :: Diagram Cairo R2 -> IO ()
-run baseImage = do
-    firstPop <- replicateM populationSize randomChromasome
-    (_, newChromasomes) <- iteration (cmp baseImage) (1, firstPop)
-    (_, _) <- iteration (cmp baseImage) (2, newChromasomes)
-    return ()
+run baseImg = do
+        pop <- replicateM populationSize randomChromasome
+        (_, newPop) <- iteration (imageValue baseImg) 1 pop
+        (_, _) <- iteration (imageValue baseImg) 2 newPop
+        return ()
 
 main = do
   imageEither <- fromDisk "/vagrant/svg/target/MonaLisa.png"

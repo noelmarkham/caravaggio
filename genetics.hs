@@ -17,7 +17,7 @@ createRouletteProportions population =  zip3 chromasomes scores normTotals
            scores = fmap (\(_, s) -> 1 / s) population
            runningTotals = fmap sum $ tail $ inits scores
            max = last runningTotals
-           normTotals = fmap (\x -> x / max ) runningTotals
+           normTotals = fmap (\x -> x / max) runningTotals
 
 crossover :: Int -> (Chromasome, Chromasome) -> (Chromasome, Chromasome)
 crossover splitPoint (one, two) = (oneA ++ twoB, twoA ++ oneB)
