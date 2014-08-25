@@ -95,6 +95,7 @@ cmp base img = do
            baseAlphaColours <- renderToList 100 100 base
            imgAlphaColours <- renderToList 100 100 img
            let difference = imgDiff baseAlphaColours imgAlphaColours
+           putStrLn $ "diff: " ++ show difference
            return difference
 
 imgDiff :: [[AlphaColour Double]] -> [[AlphaColour Double]] -> Double
@@ -102,10 +103,12 @@ imgDiff img1 img2 = abs $ sum $ zipWith diffPix (concat img1) (concat img2)
 
 diffPix :: AlphaColour Double -> AlphaColour Double -> Double
 diffPix a1 a2 = fullDiff
-            where redF a = channelRed $ toSRGB (a `over` black)
-                  greenF a = channelGreen $ toSRGB (a `over` black)
-                  blueF a = channelBlue $ toSRGB (a `over` black)
+            where normNaN v = if (isNaN v) then 0 else v
+                  redF a = normNaN $ channelRed $ toSRGB (a `over` black)
+                  greenF a = normNaN $ channelGreen $ toSRGB (a `over` black)
+                  blueF a = normNaN $ channelBlue $ toSRGB (a `over` black)
                   diffRed = redF a1 - redF a2
                   diffGreen = greenF a1 - greenF a2
                   diffBlue = blueF a1 - blueF a2
                   fullDiff = (diffRed * diffRed) - (diffGreen * diffGreen) - (diffBlue * diffBlue)
+                  err = show $ "Colour: " ++ show a1 ++ " red a1: " ++ show (redF a1) ++ " red a2: " ++ show (redF a2) ++ " diffRed: " ++ show diffRed ++ " diffGreen: " ++ show diffGreen ++ " diffBlue: " ++ show diffBlue
