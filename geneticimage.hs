@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module GeneticImage where
 
+import qualified Data.Vector as V
 import Diagrams.Prelude 
 import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.List
@@ -54,21 +55,21 @@ drawTriangle a1 a2 l1 l2 c t ro = polygon (with & polyType .~ PolySides [a1, a2]
                                   fc c # 
                                   lw none
 
-integerParameter :: State [Bool] Int
+integerParameter :: State (V.Vector Bool) Int
 integerParameter = do
                  bools <- get
-                 let (forInteger, rest) = splitAt 32 bools
+                 let (forInteger, rest) = V.splitAt 32 bools
                  put rest
-                 return $ fromListBE forInteger
+                 return $ fromListBE $ V.toList forInteger
 
-word8Parameter :: State [Bool] Word8
+word8Parameter :: State (V.Vector Bool) Word8
 word8Parameter = do
                 bools <- get
-                let (forWord, rest) = splitAt 8 bools
+                let (forWord, rest) = V.splitAt 8 bools
                 put rest
-                return $ fromListBE forWord
+                return $ fromListBE $ V.toList forWord
 
-triangleFromBools :: State [Bool] (Diagram Cairo R2)
+triangleFromBools :: State (V.Vector Bool) (Diagram Cairo R2)
 triangleFromBools = triangleFromParams
        <$> fmap fromIntegral integerParameter
        <*> fmap fromIntegral integerParameter
@@ -82,7 +83,7 @@ triangleFromBools = triangleFromParams
        <*> fmap fromIntegral integerParameter
      where triangleFromParams a1 a2 l1 l2 r g b tx ty ro = drawTriangle (a1 @@ deg) (a2 @@ deg) l1 l2 (sRGB24 r g b) (r2 (tx, ty)) (ro @@ deg)
 
-fullDiagram :: State [Bool] (Diagram Cairo R2)
+fullDiagram :: State (V.Vector Bool) (Diagram Cairo R2)
 fullDiagram = do
                redC <- fmap fromIntegral integerParameter
                greenC <- fmap fromIntegral integerParameter
@@ -92,11 +93,8 @@ fullDiagram = do
 
 cmp :: Diagram Cairo R2 -> Diagram Cairo R2 -> IO Double
 cmp base img = do
-           putStrLn "Doing base"
            baseAlphaColours <- renderToList 100 100 base
-           putStrLn "Doing img"
            imgAlphaColours <- renderToList 100 100 img
-           putStrLn "Comparing" 
            let difference = imgDiff baseAlphaColours imgAlphaColours
            putStrLn $ "diff: " ++ show difference
            return difference

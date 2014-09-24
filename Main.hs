@@ -8,10 +8,12 @@ import Diagrams.Backend.Cairo
 import Text.Printf (printf)
 import System.Random (randomRIO)
 import Data.List (sortBy)
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, zipWithM)
 import Data.Function (on)
 import Diagrams.Backend.Cairo.List
 import Control.Concurrent (forkIO)
+import Data.Vector (fromList)
+import qualified Data.Set as S
 
 populationSize :: Int
 populationSize = 20
@@ -21,11 +23,11 @@ ioMutate chromasomeLength chromasome = do
                   bits <- replicateM (quot chromasomeLength 10) $ randomRIO (0, chromasomeLength)
                   return $ doMutation bits chromasome
 
-maybeCrossover :: Int -> (Chromasome, Chromasome) -> IO (Chromasome, Chromasome)
-maybeCrossover chromasomeLength pair = do
+maybeCrossover :: Int -> Chromasome -> Chromasome -> IO (Chromasome, Chromasome)
+maybeCrossover chromasomeLength c1 c2 = do
                   randSelect <- randomRIO (0, 1.0) :: IO Double
                   randPos <- randomRIO (0, chromasomeLength)
-                  return $ if (randSelect < 0.7) then crossover randPos pair else pair
+                  return $ if (randSelect < 0.7) then crossover randPos (c1, c2) else (c1, c2)
 
 listOfTupToList :: [(a, a)] -> [a]
 listOfTupToList l = concat $ map tupToList l
@@ -40,9 +42,12 @@ newPopulation population = do
                   let randPick2 = fmap pickForPop rand2
                   let crossFunc = maybeCrossover bitCount
                   let mutateFunc = ioMutate bitCount
-                  newPop <- mapM crossFunc $ zip randPick1 randPick2
+                  newPop <- zipWithM crossFunc randPick1 randPick2
                   let flatNewPop = listOfTupToList newPop
-                  mapM mutateFunc flatNewPop
+                  let s = S.fromList flatNewPop
+                  putStrLn $ "New Pop uniques a: " ++ show (S.size s)
+                  --mapM mutateFunc flatNewPop
+                  return flatNewPop
 
 iteration :: (Diagram Cairo R2 -> IO Double) -> Int -> [Chromasome] -> IO (Int, [Chromasome])
 iteration compareFunction count population = do
@@ -62,16 +67,22 @@ iteration compareFunction count population = do
                   -- create a new population using the genetics functions
                   newPop <- newPopulation $ zip population scores
 
-                  return (count + 1, newPop)
+                  let s = S.fromList newPop
+
+                  putStrLn $ "New Pop uniques b: " ++ show (S.size s)
+
+                  let next = count + 1
+                  if (next < 1000000) then iteration compareFunction next newPop else return (next, newPop)
 
 randomChromasome :: IO Chromasome
-randomChromasome = replicateM bitCount $ randomRIO (False, True)
+randomChromasome = do
+        bits <- replicateM bitCount $ randomRIO (False, True)
+        return $ fromList bits
 
 run :: Diagram Cairo R2 -> IO ()
 run baseImg = do
         pop <- replicateM populationSize randomChromasome
-        (_, newPop) <- iteration (imageValue baseImg) 1 pop
-        (_, _) <- iteration (imageValue baseImg) 2 newPop
+        iteration (imageValue baseImg) 1 pop
         return ()
 
 main = do

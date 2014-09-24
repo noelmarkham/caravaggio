@@ -1,9 +1,10 @@
 module Genetics where
 
+import qualified Data.Vector as V
 import Data.List (inits)
 import Data.Fixed (mod')
 
-type Chromasome = [Bool]
+type Chromasome = V.Vector Bool
 
 roulettePick :: [(Chromasome, Double)] -> Double -> (Chromasome, Double)
 roulettePick population value = (chromasome, score)
@@ -20,14 +21,14 @@ createRouletteProportions population =  zip3 chromasomes scores normTotals
            normTotals = fmap (\x -> x / max) runningTotals
 
 crossover :: Int -> (Chromasome, Chromasome) -> (Chromasome, Chromasome)
-crossover splitPoint (one, two) = (oneA ++ twoB, twoA ++ oneB)
-      where (oneA, oneB) = splitAt splitPoint one
-            (twoA, twoB) = splitAt splitPoint two
+crossover splitPoint (one, two) = (oneA V.++ twoB, twoA V.++ oneB)
+      where (oneA, oneB) = V.splitAt splitPoint one
+            (twoA, twoB) = V.splitAt splitPoint two
 
 doMutation :: [Int] -> Chromasome -> Chromasome
 doMutation bits chromasome = foldl mutate chromasome bits
-      where mutate [] _ = []
-            mutate c bitValue = front ++ not flipBit : rest
-                where moddedBitValue = bitValue `mod` length c
-                      (front, flipBit : rest) = splitAt moddedBitValue c
-
+      where mutate :: V.Vector Bool -> Int -> V.Vector Bool
+            mutate empty _ = V.empty
+            mutate c bitValue = front V.++ not (V.head rest) `V.cons` (V.tail rest)
+                where moddedBitValue = bitValue `mod` V.length c
+                      (front, rest) = V.splitAt moddedBitValue c
